@@ -70,19 +70,25 @@ def process_voice():
         audio.export(wav_file, format="wav")
         wav_file.seek(0)
 
-        # Use SpeechRecognition to transcribe
+        # Transcribe the audio chunk
         with sr.AudioFile(wav_file) as source:
             audio_data = recognizer.record(source)
-            transcription = recognizer.recognize_google(audio_data)
+            try:
+                transcription = recognizer.recognize_google(audio_data)
+            except sr.UnknownValueError:
+                transcription = ""  # Handle empty chunks gracefully
+            except sr.RequestError as e:
+                return jsonify({"error": f"SpeechRecognition API error: {e}"}), 500
 
-        # Use AI to extract metrics
-        extracted_data = extract_metrics_from_transcription(transcription)
-        if not extracted_data:
-            return jsonify({"error": "Failed to extract data using AI"}), 500
+        # Log transcription
+        print(f"Partial transcription: {transcription}")
 
-        # Placeholder for Google Sheets integration
-        print("Extracted Data:", extracted_data)  # For debugging
-        # Later: Push this data to Google Sheets
+        # Use AI to extract metrics (only if transcription is meaningful)
+        if transcription.strip():
+            extracted_data = extract_metrics_from_transcription(transcription)
+            print("Extracted Data:", extracted_data)
+        else:
+            extracted_data = {"item_name": "N/A", "location": "N/A", "cost": "N/A", "selling_price": "N/A"}
 
         return jsonify({
             "transcription": transcription,
@@ -90,6 +96,7 @@ def process_voice():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
