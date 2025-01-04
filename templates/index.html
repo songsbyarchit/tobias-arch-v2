@@ -68,86 +68,65 @@
             <button type="submit">Add Item</button>
         </form>
         <textarea id="transcriptBox" rows="10" cols="50" placeholder="Your transcript will appear here..." readonly></textarea>
+        <button id="startBtn">Start Recording</button>
+        <button id="stopBtn" disabled>Stop Recording</button> <!-- Initially disabled -->
+        <button id="clearButton">Clear</button>
+
     </main>
     <script>
-        document.getElementById('addItemForm').addEventListener('submit', async (event) => {
-            event.preventDefault();
-
-            const formData = new FormData(event.target);
-            const data = Object.fromEntries(formData.entries());
-
-            const response = await fetch('/add-item', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data),
+        // Check browser support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        let isListening = false;
+    
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true; // Enables continuous listening
+            recognition.interimResults = true; // Allows partial transcription
+    
+            recognition.addEventListener('result', (event) => {
+                let transcript = '';
+                for (let i = 0; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript; // Append interim and final results
+                }
+                document.getElementById('transcriptBox').value = transcript; // Update textarea
             });
-
-            const result = await response.json();
-            document.getElementById('responseMessage').textContent = result.message;
+    
+            recognition.addEventListener('start', () => {
+                console.log('Speech recognition started');
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+            });
+    
+            recognition.addEventListener('end', () => {
+                console.log('Speech recognition ended');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            });
+        } else {
+            alert('Sorry, your browser does not support Speech Recognition');
+        }
+    
+        // Start recording
+        document.getElementById('startBtn').addEventListener('click', () => {
+            if (!isListening && recognition) {
+                isListening = true;
+                recognition.start();
+            }
         });
-
-        // Check for microphone support
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        console.log("Microphone access available");
-
-        const recordButton = document.createElement("button");
-        recordButton.textContent = "Start Recording";
-        document.body.appendChild(recordButton);
-
-        const stopButton = document.createElement("button");
-        stopButton.textContent = "Stop Recording";
-        stopButton.style.display = "none";
-        document.body.appendChild(stopButton);
-
-        let mediaRecorder;
-        let audioChunks = [];
-
-        recordButton.addEventListener("click", async () => {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-
-            mediaRecorder.ondataavailable = (event) => {
-                audioChunks.push(event.data);
-            };
-
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-                const formData = new FormData();
-                formData.append("file", audioBlob, "recording.webm");
-
-                // Send audio to the server
-                fetch("/process-voice", {
-                    method: "POST",
-                    body: formData,
-                })
-                .then((response) => response.json())
-                .then((data) => {
-                    console.log(data);
-                    const transcriptBox = document.getElementById('transcriptBox');
-                    transcriptBox.value = data.transcription || "No transcription available.";
-                })
-                .catch((error) => console.error("Error:", error));
-
-                audioChunks = [];
-            };
-
-            mediaRecorder.start();
-            recordButton.style.display = "none";
-            stopButton.style.display = "block";
-            console.log("Recording started");
+    
+        // Stop recording
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            if (isListening && recognition) {
+                isListening = false;
+                recognition.stop();
+            }
         });
-
-        stopButton.addEventListener("click", () => {
-            mediaRecorder.stop();
-            recordButton.style.display = "block";
-            stopButton.style.display = "none";
-            console.log("Recording stopped");
+    
+        // Clear the textarea
+        document.getElementById('clearButton').addEventListener('click', () => {
+            document.getElementById('transcriptBox').value = ''; // Clear the textarea
         });
-    } else {
-        alert("Microphone access is not supported in your browser");
-    }
-    </script>
+    </script>    
 </body>
 </html>
