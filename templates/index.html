@@ -67,7 +67,7 @@
 
             <button type="submit">Add Item</button>
         </form>
-        <p id="responseMessage"></p>
+        <textarea id="transcriptBox" rows="10" cols="50" placeholder="Your transcript will appear here..." readonly></textarea>
     </main>
     <script>
         document.getElementById('addItemForm').addEventListener('submit', async (event) => {
@@ -122,12 +122,13 @@
                     method: "POST",
                     body: formData,
                 })
-                    .then((response) => response.json())
-                    .then((data) => {
-                        console.log(data);
-                        alert(`Transcription: ${data.transcription}`);
-                    })
-                    .catch((error) => console.error("Error:", error));
+                .then((response) => response.json())
+                .then((data) => {
+                    console.log(data);
+                    const transcriptBox = document.getElementById('transcriptBox');
+                    transcriptBox.value = data.transcription || "No transcription available.";
+                })
+                .catch((error) => console.error("Error:", error));
 
                 audioChunks = [];
             };
